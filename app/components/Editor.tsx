@@ -1,0 +1,158 @@
+import { Textarea } from '~/components/ui/textarea';
+import { Button } from '~/components/ui/button';
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '~/components/ui/resizable';
+import { SlideRenderer } from './SlideRenderer';
+import { usePresentationContext } from '~/contexts/PresentationContext';
+import { Play, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router';
+
+export function Editor() {
+  const {
+    markdownText,
+    setMarkdownText,
+    slides,
+    currentSlide,
+    totalSlides,
+    nextSlide,
+    prevSlide,
+    goToSlide,
+  } = usePresentationContext();
+  const navigate = useNavigate();
+
+  const handlePresentClick = () => {
+    navigate('/present');
+  };
+
+  return (
+    <div className="h-screen flex flex-col">
+      {/* Header */}
+      <header className="border-b border-border bg-background px-6 py-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">AirDeck</h1>
+          <p className="text-sm text-muted-foreground">
+            {totalSlides > 0
+              ? `${totalSlides} slide${totalSlides !== 1 ? 's' : ''} | Current: ${currentSlide + 1}`
+              : 'Start writing to create slides'}
+          </p>
+        </div>
+        <Button
+          onClick={handlePresentClick}
+          disabled={totalSlides === 0}
+          size="lg"
+          className="gap-2"
+        >
+          <Play className="w-5 h-5" />
+          Present
+        </Button>
+      </header>
+
+      {/* Main Content */}
+      <ResizablePanelGroup direction="horizontal" className="flex-1">
+        {/* Editor Panel */}
+        <ResizablePanel defaultSize={50} minSize={30}>
+          <div className="h-full flex flex-col p-6 bg-background">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold mb-1">
+                Markdown Editor
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Use{' '}
+                <code className="bg-muted px-1 py-0.5 rounded">
+                  ---
+                </code>{' '}
+                to separate slides
+              </p>
+            </div>
+            <Textarea
+              value={markdownText}
+              onChange={(e) => setMarkdownText(e.target.value)}
+              placeholder="# Welcome to AirDeck
+
+Start writing your presentation in Markdown...
+
+---
+
+# Second Slide
+
+Use --- to create new slides"
+              className="flex-1 font-mono resize-none"
+            />
+          </div>
+        </ResizablePanel>
+
+        <ResizableHandle withHandle />
+
+        {/* Preview Panel */}
+        <ResizablePanel defaultSize={50} minSize={30}>
+          <div className="h-full flex flex-col bg-muted/30">
+            <div className="border-b border-border px-6 py-4 bg-background">
+              <h2 className="text-lg font-semibold">
+                Preview{' '}
+                {totalSlides > 0 ? `- Slide ${currentSlide + 1}` : ''}
+              </h2>
+            </div>
+            <div className="flex-1 overflow-auto">
+              {slides.length > 0 ? (
+                <SlideRenderer markdown={slides[currentSlide]} />
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground">
+                  <div className="text-center">
+                    <p className="text-lg mb-2">No slides yet</p>
+                    <p className="text-sm">
+                      Start typing in the editor to see your
+                      presentation
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            {totalSlides > 1 && (
+              <div className="border-t border-border px-6 py-3 bg-background flex items-center justify-between gap-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={prevSlide}
+                  disabled={currentSlide === 0}
+                  className="gap-1"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </Button>
+
+                <div className="flex gap-1.5 items-center">
+                  {slides.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => goToSlide(index)}
+                      className={`h-2 w-8 rounded-full transition-all hover:scale-110 ${
+                        index === currentSlide
+                          ? 'bg-primary'
+                          : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
+                      }`}
+                      aria-label={`Go to slide ${index + 1}`}
+                    />
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={nextSlide}
+                  disabled={currentSlide === totalSlides - 1}
+                  className="gap-1"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
+  );
+}
