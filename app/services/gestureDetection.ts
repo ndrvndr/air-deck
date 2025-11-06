@@ -1,0 +1,123 @@
+import * as poseDetection from "@tensorflow-models/pose-detection";
+import * as tf from "@tensorflow/tfjs";
+
+export type GestureType = "swipe-right" | "swipe-left" | null;
+
+export interface GestureDetectionConfig {
+  swipeThreshold: number;
+  cooldownMs: number;
+  minConfidence: number;
+}
+
+export const DEFAULT_CONFIG: GestureDetectionConfig = {
+  swipeThreshold: 50, // Minimum pixel movement to trigger swipe
+  cooldownMs: 800, // Cooldown between gesture detections
+  minConfidence: 0.3, // Minimum confidence score for keypoint
+};
+
+export class GestureDetectionService {
+  private detector: poseDetection.PoseDetector | null = null;
+  private prevWristPositions: { left: number; right: number } = {
+    left: 0,
+    right: 0,
+  };
+  private isOnCooldown = false;
+  private config: GestureDetectionConfig;
+
+  constructor(config: Partial<GestureDetectionConfig> = {}) {
+    this.config = { ...DEFAULT_CONFIG, ...config };
+  }
+
+  async initialize() {
+    try {
+      // Ensure TensorFlow.js is ready
+      await tf.ready();
+
+      // Create detector with MoveNet Lightning model (fastest)
+      this.detector = await poseDetection.createDetector(
+        poseDetection.SupportedModels.MoveNet,
+        {
+          modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+        }
+      );
+
+      return true;
+    } catch (error) {
+      console.error("Failed to initialize pose detector:", error);
+      throw error;
+    }
+  }
+
+  async detectGesture(
+    videoElement: HTMLVideoElement
+  ): Promise<GestureType | null> {
+    if (!this.detector || this.isOnCooldown) {
+      return null;
+    }
+
+    try {
+      const poses = await this.detector.estimatePoses(videoElement);
+
+      if (poses.length === 0) {
+        return null;
+      }
+
+      const pose = poses[0];
+      const keypoints = pose.keypoints;
+
+      // MoveNet keypoint indices:
+      // 9 = left_wrist, 10 = right_wrist
+      const leftWrist = keypoints.find((kp) => kp.name === "left_wrist");
+      const rightWrist = keypoints.find((kp) => kp.name === "right_wrist");
+
+      if (!leftWrist || !rightWrist) {
+        return null;
+      }
+
+      // Detect swipe right (right hand moving right)
+      if (rightWrist.score && rightWrist.score > this.config.minConfidence) {
+        const deltaX = rightWrist.x - this.prevWristPositions.right;
+
+        if (deltaX > this.config.swipeThreshold) {
+          this.prevWristPositions.right = rightWrist.x;
+          this.startCooldown();
+          return "swipe-right";
+        }
+
+        this.prevWristPositions.right = rightWrist.x;
+      }
+
+      // Detect swipe left (left hand moving left)
+      if (leftWrist.score && leftWrist.score > this.config.minConfidence) {
+        const deltaX = leftWrist.x - this.prevWristPositions.left;
+
+        if (deltaX < -this.config.swipeThreshold) {
+          this.prevWristPositions.left = leftWrist.x;
+          this.startCooldown();
+          return "swipe-left";
+        }
+
+        this.prevWristPositions.left = leftWrist.x;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error detecting gesture:", error);
+      return null;
+    }
+  }
+
+  private startCooldown() {
+    this.isOnCooldown = true;
+    setTimeout(() => {
+      this.isOnCooldown = false;
+    }, this.config.cooldownMs);
+  }
+
+  dispose() {
+    if (this.detector) {
+      this.detector.dispose();
+      this.detector = null;
+    }
+  }
+}
