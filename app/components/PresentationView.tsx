@@ -20,7 +20,6 @@ export function PresentationView() {
   const navigate = useNavigate();
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Memoize gesture handler to prevent infinite re-renders
   const handleGesture = useCallback(
     (gesture: GestureType) => {
       if (gesture === 'swipe-right') {
