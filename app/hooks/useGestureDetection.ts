@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from "react";
-import { GestureDetectionService } from "~/services/gestureDetection";
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { GestureDetectionService } from '~/services/gestureDetection';
 import type {
   GestureType,
   GestureDetectionConfig,
-} from "~/services/gestureDetection";
+} from '~/services/gestureDetection';
 
 interface UseGestureDetectionOptions {
   enabled?: boolean;
@@ -40,17 +40,20 @@ export function useGestureDetection({
     }
 
     try {
-      const gesture = await serviceRef.current.detectGesture(videoRef.current);
+      const gesture = await serviceRef.current.detectGesture(
+        videoRef.current,
+      );
 
       if (gesture) {
         setLastGesture(gesture);
         onGesture?.(gesture);
       }
     } catch (err) {
-      console.error("Error in gesture detection loop:", err);
+      console.error('Error in gesture detection loop:', err);
     }
 
-    animationFrameRef.current = requestAnimationFrame(detectGestureLoop);
+    animationFrameRef.current =
+      requestAnimationFrame(detectGestureLoop);
   }, [enabled, onGesture]);
 
   const startCamera = useCallback(async () => {
@@ -59,7 +62,7 @@ export function useGestureDetection({
         video: {
           width: { ideal: 640 },
           height: { ideal: 480 },
-          facingMode: "user",
+          facingMode: 'user',
         },
       });
 
@@ -82,9 +85,9 @@ export function useGestureDetection({
 
       return false;
     } catch (err) {
-      console.error("Failed to start camera:", err);
+      console.error('Failed to start camera:', err);
       setError(
-        "Camera access denied. Please grant camera permissions to use gesture controls."
+        'Camera access denied. Please grant camera permissions to use gesture controls.',
       );
       return false;
     }
@@ -102,29 +105,33 @@ export function useGestureDetection({
         setIsLoading(true);
         setError(null);
 
-        // Start camera first
         const cameraStarted = await startCamera();
-        if (!cameraStarted || !mounted) {
+        if (!cameraStarted) {
           return;
         }
 
-        // Initialize gesture detection service
+        if (!mounted) {
+          return;
+        }
+
         serviceRef.current = new GestureDetectionService(config);
-        await serviceRef.current.initialize();
+        await serviceRef.current.initializeWithTimeout(30000);
 
         if (mounted) {
           setIsActive(true);
-          setIsLoading(false);
 
           // Start detection loop
           detectGestureLoop();
         }
       } catch (err) {
-        console.error("Failed to initialize gesture detection:", err);
+        console.error('Failed to initialize gesture detection:', err);
         if (mounted) {
           setError(
-            "Failed to load AI model. Gesture controls are disabled, but you can still use arrow keys."
+            'Failed to load AI model. Gesture controls are disabled, but you can still use arrow keys.',
           );
+        }
+      } finally {
+        if (mounted) {
           setIsLoading(false);
         }
       }
@@ -142,7 +149,9 @@ export function useGestureDetection({
 
       // Stop camera stream
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current
+          .getTracks()
+          .forEach((track) => track.stop());
       }
 
       // Dispose gesture detection service

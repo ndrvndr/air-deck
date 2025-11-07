@@ -30,8 +30,12 @@ export class GestureDetectionService {
 
   async initialize() {
     try {
+      console.log("1. Starting TensorFlow.js initialization...");
+
       // Ensure TensorFlow.js is ready
       await tf.ready();
+
+      console.log("2. TensorFlow.js ready! Loading MoveNet model...");
 
       // Create detector with MoveNet Lightning model (fastest)
       this.detector = await poseDetection.createDetector(
@@ -41,11 +45,30 @@ export class GestureDetectionService {
         }
       );
 
+      console.log("3. MoveNet model loaded successfully!");
+
       return true;
     } catch (error) {
       console.error("Failed to initialize pose detector:", error);
       throw error;
     }
+  }
+
+  async initializeWithTimeout(timeoutMs = 30000): Promise<boolean> {
+    console.log(`Starting model initialization with ${timeoutMs}ms timeout...`);
+
+    return Promise.race([
+      this.initialize(),
+      new Promise<boolean>((_, reject) =>
+        setTimeout(() => {
+          const error = new Error(
+            `Model loading timeout after ${timeoutMs / 1000} seconds. This may be due to slow network or TensorFlow.js initialization issues.`
+          );
+          console.error("Initialization timeout:", error);
+          reject(error);
+        }, timeoutMs)
+      ),
+    ]);
   }
 
   async detectGesture(

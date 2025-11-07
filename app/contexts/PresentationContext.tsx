@@ -1,5 +1,11 @@
-import { createContext, useContext, useState, useCallback } from "react";
-import type { ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+} from 'react';
+import type { ReactNode } from 'react';
 
 interface PresentationContextType {
   markdownText: string;
@@ -12,15 +18,15 @@ interface PresentationContextType {
   totalSlides: number;
 }
 
-const PresentationContext = createContext<PresentationContextType | undefined>(
-  undefined
-);
+const PresentationContext = createContext<
+  PresentationContextType | undefined
+>(undefined);
 
 export function usePresentationContext() {
   const context = useContext(PresentationContext);
   if (!context) {
     throw new Error(
-      "usePresentationContext must be used within a PresentationProvider"
+      'usePresentationContext must be used within a PresentationProvider',
     );
   }
   return context;
@@ -33,16 +39,19 @@ interface PresentationProviderProps {
 
 export function PresentationProvider({
   children,
-  initialMarkdown = "",
+  initialMarkdown = '',
 }: PresentationProviderProps) {
   const [markdownText, setMarkdownText] = useState(initialMarkdown);
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Derive slides array from markdown text
-  const slides = markdownText
-    .split(/\n---\n/)
-    .map((slide) => slide.trim())
-    .filter((slide) => slide.length > 0);
+  const slides = useMemo(
+    () =>
+      markdownText
+        .split(/\n---\n/)
+        .map((slide) => slide.trim())
+        .filter((slide) => slide.length > 0),
+    [markdownText],
+  );
 
   const totalSlides = slides.length;
 
@@ -60,7 +69,7 @@ export function PresentationProvider({
         setCurrentSlide(index);
       }
     },
-    [totalSlides]
+    [totalSlides],
   );
 
   return (
