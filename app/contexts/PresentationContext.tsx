@@ -17,6 +17,8 @@ interface PresentationContextType {
   prevSlide: () => void;
   goToSlide: (index: number) => void;
   totalSlides: number;
+  canNext: boolean;
+  canPrev: boolean;
 }
 
 const PresentationContext = createContext<PresentationContextType | undefined>(
@@ -78,11 +80,11 @@ export function PresentationProvider({
 
   const totalSlides = slides.length;
 
-  useEffect(() => {
-    if (currentSlide >= totalSlides && totalSlides > 0) {
-      setCurrentSlide(totalSlides - 1);
-    }
-  }, [currentSlide, totalSlides]);
+  const safeCurrentSlide =
+    totalSlides > 0 ? Math.min(currentSlide, totalSlides - 1) : 0;
+
+  const canNext = safeCurrentSlide < totalSlides - 1;
+  const canPrev = safeCurrentSlide > 0;
 
   const nextSlide = useCallback(() => {
     setCurrentSlide((prev) => Math.min(prev + 1, totalSlides - 1));
@@ -101,19 +103,34 @@ export function PresentationProvider({
     [totalSlides]
   );
 
+  const value = useMemo(
+    () => ({
+      markdownText,
+      setMarkdownText,
+      slides,
+      currentSlide: safeCurrentSlide,
+      nextSlide,
+      prevSlide,
+      goToSlide,
+      totalSlides,
+      canNext,
+      canPrev,
+    }),
+    [
+      markdownText,
+      slides,
+      safeCurrentSlide,
+      nextSlide,
+      prevSlide,
+      goToSlide,
+      totalSlides,
+      canNext,
+      canPrev,
+    ]
+  );
+
   return (
-    <PresentationContext.Provider
-      value={{
-        markdownText,
-        setMarkdownText,
-        slides,
-        currentSlide,
-        nextSlide,
-        prevSlide,
-        goToSlide,
-        totalSlides,
-      }}
-    >
+    <PresentationContext.Provider value={value}>
       {children}
     </PresentationContext.Provider>
   );
