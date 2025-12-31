@@ -1,12 +1,14 @@
+import type { ReactNode } from 'react';
 import {
   createContext,
-  useContext,
-  useState,
   useCallback,
-  useMemo,
+  useContext,
   useEffect,
+  useMemo,
+  useState,
 } from 'react';
-import type { ReactNode } from 'react';
+
+import useLocalStorage from '~/hooks/useLocalStorage';
 
 interface PresentationContextType {
   markdownText: string;
@@ -46,28 +48,12 @@ export function PresentationProvider({
   children,
   initialMarkdown = '',
 }: PresentationProviderProps) {
-  const [markdownText, setMarkdownText] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(STORAGE_KEY) || initialMarkdown;
-    }
-    return initialMarkdown;
-  });
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [markdownText, setMarkdownText] = useLocalStorage<string>(
+    STORAGE_KEY,
+    initialMarkdown
+  );
 
-  useEffect(() => {
-    setIsLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (isLoaded && typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(STORAGE_KEY, markdownText);
-      } catch (error) {
-        console.error('Failed to save to localStorage:', error);
-      }
-    }
-  }, [markdownText, isLoaded]);
+  const [currentSlide, setCurrentSlide] = useState<number>(0);
 
   const slides = useMemo(
     () =>
@@ -82,7 +68,6 @@ export function PresentationProvider({
 
   const safeCurrentSlide =
     totalSlides > 0 ? Math.min(currentSlide, totalSlides - 1) : 0;
-
   const canNext = safeCurrentSlide < totalSlides - 1;
   const canPrev = safeCurrentSlide > 0;
 
